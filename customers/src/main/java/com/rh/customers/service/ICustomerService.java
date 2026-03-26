@@ -1,22 +1,21 @@
 package com.rh.customers.service;
 
-import com.rh.customers.service.dto.CustomerDTO;
+import com.rh.customers.service.dto.CreateCustomerDTO;
+import com.rh.customers.service.dto.GetCustomerDTO;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.List;
-
 public interface ICustomerService  {
 
-    Mono<CustomerDTO> createCustomer(CustomerDTO customerDTO);
+    Mono<GetCustomerDTO> createCustomer(CreateCustomerDTO createCustomerDTO);
 
-    Mono<CustomerDTO> getCustomerByIdentificationNumber(String customerIdentificationNumber);
+    Mono<GetCustomerDTO> getCustomerByIdentificationNumber(String customerIdentificationNumber);
 
-    Flux<CustomerDTO> getAllCustomers(Boolean state);
+    Flux<GetCustomerDTO> getAllCustomers(Boolean state);
 
-    void updateCustomer(CustomerDTO customer);
+    Mono<GetCustomerDTO> updateCustomer(CreateCustomerDTO customer);
 
-    void deleteCustomer(String identificationNumber);
+    Mono<Void> deleteCustomer(String identificationNumber);
 
 
 

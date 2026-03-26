@@ -1,21 +1,27 @@
 package com.rh.customers.repository.model;
 
+import jakarta.persistence.*;
 import lombok.Data;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.relational.core.mapping.Column;
-import org.springframework.data.relational.core.mapping.Table;
 
 @Data
+@Entity
 @Table(name="customer")
 public class CustomerEntity {
 
     @Id
+    @Column(name="id")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name="state")
     private Boolean state;
+
+    @Column(name="password")
     private String password;
 
-    @Column("person_id")
-    private Long personId;
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name="person_id")
+    private PersonEntity person;
 
 
 }
