@@ -5,7 +5,10 @@ import lombok.Data;
 
 
 @Data
-@Table(name="person")
+@Table(name="person",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_person_identification", columnNames = "identification_number")
+        })
 @Entity
 public class PersonEntity {
 
@@ -26,7 +29,7 @@ public class PersonEntity {
     @Column(name="phone")
     private String phone;
 
-    @Column(name="identification_number")
+    @Column(name="identification_number", nullable = false)
     private String identificationNumber;
 
     @OneToOne(mappedBy = "person")

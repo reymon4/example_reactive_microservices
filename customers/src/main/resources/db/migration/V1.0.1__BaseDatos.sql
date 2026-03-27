@@ -52,12 +52,12 @@ CREATE TABLE IF NOT EXISTS customer
 )
     );
 
-INSERT INTO person (id, name, address, phone, identification_number, gender)
-VALUES (1, 'Jose Lema', 'Otavalo sn y principal', '098254785', '1234567890', 'MASCULINO'),
-       (2, 'Marianela Montalvo', 'Amazonas y NNUU', '097548965', '1987654321', 'FEMENINO'),
-       (3, 'Juan Osorio', '13 junio y Equinoccial', '098874587', '1122334455', 'MASCULINO');
+INSERT INTO person (name, address, phone, identification_number, gender)
+VALUES ('Jose Lema', 'Otavalo sn y principal', '098254785', '1234567890', 'MASCULINO'),
+       ( 'Marianela Montalvo', 'Amazonas y NNUU', '097548965', '1987654321', 'FEMENINO'),
+       ( 'Juan Osorio', '13 junio y Equinoccial', '098874587', '1122334455', 'MASCULINO');
 
-INSERT INTO customer (id, state, password, person_id)
-VALUES (1, TRUE, 'password123', 1),
-       (2, TRUE, 'securepass456', 2),
-       (3, TRUE, 'mypassword789', 3);
+INSERT INTO customer (state, password, person_id)
+VALUES (TRUE, 'password123', (SELECT id FROM person WHERE identification_number = '1234567890')),
+       ( TRUE, 'securepass456', (SELECT id FROM person WHERE identification_number = '1987654321')),
+       ( TRUE, 'mypassword789', (SELECT id FROM person WHERE identification_number = '1122334455'));
