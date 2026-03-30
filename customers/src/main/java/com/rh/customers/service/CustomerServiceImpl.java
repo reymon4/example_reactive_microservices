@@ -1,11 +1,15 @@
 package com.rh.customers.service;
+import com.rh.customers.cache.CustomerCacheService;
+import com.rh.customers.event.producer.CustomerEvent;
+import com.rh.customers.event.producer.CustomerEventProducer;
+import com.rh.customers.exception.database.DuplicateResourceException;
+import com.rh.customers.exception.database.IllegalArgumentsException;
 import com.rh.customers.exception.domain.NotFoundException;
 import com.rh.customers.repository.ICustomerRepository;
 import com.rh.customers.repository.model.CustomerEntity;
 import com.rh.customers.repository.model.PersonEntity;
 import com.rh.customers.service.dto.CreateCustomerDTO;
 import com.rh.customers.service.dto.GetCustomerDTO;
-import com.rh.customers.service.dto.PersonDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -23,9 +27,13 @@ import reactor.core.scheduler.Schedulers;
 public class CustomerServiceImpl implements ICustomerService {
 
     private final ICustomerRepository customerRepository;
+    private final CustomerCacheService customerCacheService;
+    private final CustomerEventProducer customerEventProducer;
 
-    public CustomerServiceImpl(ICustomerRepository customerRepository) {
+    public CustomerServiceImpl(ICustomerRepository customerRepository, CustomerCacheService customerCacheService, CustomerEventProducer customerEventProducer) {
+        this.customerCacheService = customerCacheService;
         this.customerRepository = customerRepository;
+        this.customerEventProducer = customerEventProducer;
     }
 
 
@@ -37,10 +45,37 @@ public class CustomerServiceImpl implements ICustomerService {
                 )
                 .subscribeOn(Schedulers.boundedElastic())
                 .map(this::convertToDTO)
+                .flatMap(customer ->
+                        customerCacheService.save(customer)
+                                .onErrorResume(ex -> {
+                                    log.warn("Cache failed id={}", identificationNumber, ex);
+                                    return Mono.empty();
+                                })
+                                .thenReturn(customer)
+                )
+                .doOnSuccess(customer -> {
+                    CustomerEvent event = new CustomerEvent();
+                    event.setIdentificationNumber(customer.getIdentificationNumber());
+                    event.setName(customer.getCustomerName());
+                    event.setState(customer.getState());
+                    customerEventProducer.sendCustomerCreatedEvent("customer-created", event);
+                })
+
                 .onErrorMap(DataIntegrityViolationException.class, ex -> {
-                    log.warn("Constraint violation while creating customer identificationNumber={}", identificationNumber, ex);
-                    return new DataIntegrityViolationException("Data integrity violation for customer with identification number: " + identificationNumber, ex) {
-                    };
+                    String message = ex.getMostSpecificCause().getMessage();
+
+                    if (message != null && message.contains("unique")) {
+                        log.warn("Duplicate customer identificationNumber={}", identificationNumber);
+                        return new DuplicateResourceException("Customers", identificationNumber);
+                    }
+
+                    if (message != null && message.contains("null value")) {
+                        log.error("Null constraint violation identificationNumber={}", identificationNumber, ex);
+                        return new IllegalArgumentsException(identificationNumber, message);
+                    }
+
+                    log.error("Data integrity violation identificationNumber={}", identificationNumber, ex);
+                    return ex;
                 })
                 .onErrorMap(DataAccessException.class, ex -> {
                     log.error("Database error while creating customer identificationNumber={}", identificationNumber, ex);
@@ -103,14 +138,37 @@ public class CustomerServiceImpl implements ICustomerService {
                     updateEntity(existingCustomer, customer);
                     return existingCustomer;
                 })
+
                 .flatMap(c ->
-                        Mono.fromCallable(() -> this.convertToDTO(this.customerRepository.save(c)))
+                        Mono.fromCallable(() -> this.customerRepository.save(c))
                                 .subscribeOn(Schedulers.boundedElastic())
                 )
+                .map(this::convertToDTO)
+                .flatMap(updatedCustomer ->
+                        customerCacheService.delete(identificationNumber)
+                                .doOnSuccess(d -> log.debug("Cache invalidated id={}", identificationNumber))
+                                .onErrorResume(ex -> {
+                                    log.warn("Cache delete failed id={}", identificationNumber, ex);
+                                    return Mono.empty();
+                                })
+                                .thenReturn(updatedCustomer)
+                )
+
                 .onErrorMap(DataIntegrityViolationException.class, ex -> {
-                    log.warn("Constraint violation while updating customer identificationNumber={}", customer.getPerson().getIdentificationNumber(), ex);
-                    return new DataIntegrityViolationException("Data integrity violation for customer with identification number: " + customer.getPerson().getIdentificationNumber(), ex) {
-                    };
+                    String message = ex.getMostSpecificCause().getMessage();
+
+                    if (message != null && message.contains("unique")) {
+                        log.warn("Duplicate customer identificationNumber={}", identificationNumber);
+                        return new DuplicateResourceException("Customers", identificationNumber);
+                    }
+
+                    if (message != null && message.contains("null value")) {
+                        log.error("Null constraint violation identificationNumber={}", identificationNumber, ex);
+                        return new IllegalArgumentsException(identificationNumber, message);
+                    }
+
+                    log.error("Data integrity violation identificationNumber={}", identificationNumber, ex);
+                    return ex;
                 })
 
                 .onErrorMap(DataAccessException.class, ex -> {
@@ -131,8 +189,14 @@ public class CustomerServiceImpl implements ICustomerService {
                 .flatMap(customer -> Mono.fromRunnable(() -> this.customerRepository.delete(customer))
                         .subscribeOn(Schedulers.boundedElastic())
                 )
+                .then(customerCacheService.delete(identificationNumber)
+                        .doOnSuccess(d -> log.debug("Cache deleted id={}", identificationNumber))
+                        .onErrorResume(ex -> {
+                            log.warn("Cache failed id={}", identificationNumber, ex);
+                            return Mono.empty();
+                        }))
                 .onErrorMap(DataAccessException.class, ex -> {
-                    log.error("Database error while updating customer identificationNumber={}", identificationNumber, ex);
+                    log.error("Database error while deleting customer identificationNumber={}", identificationNumber, ex);
                     return new DataAccessException("Error accessing the database", ex) {};
                 })
                 .then();
@@ -157,15 +221,11 @@ public class CustomerServiceImpl implements ICustomerService {
     private GetCustomerDTO convertToDTO(CustomerEntity customerEntity) {
         GetCustomerDTO getCustomerDTO = new GetCustomerDTO();
         getCustomerDTO.setId(customerEntity.getId());
-        PersonDTO personDTO = new PersonDTO();
-        personDTO.setId(customerEntity.getPerson().getId());
-        personDTO.setName(customerEntity.getPerson().getName());
-        personDTO.setIdentificationNumber(customerEntity.getPerson().getIdentificationNumber());
-        personDTO.setName(customerEntity.getPerson().getName());
-        personDTO.setGender(customerEntity.getPerson().getGender());
-        personDTO.setAddress(customerEntity.getPerson().getAddress());
-        personDTO.setPhone(customerEntity.getPerson().getPhone());
-        getCustomerDTO.setPerson(personDTO);
+        getCustomerDTO.setAddress(customerEntity.getPerson().getAddress());
+        getCustomerDTO.setState(customerEntity.getState());
+        getCustomerDTO.setCustomerName(customerEntity.getPerson().getName());
+        getCustomerDTO.setPhone(customerEntity.getPerson().getPhone());
+        getCustomerDTO.setIdentificationNumber(customerEntity.getPerson().getIdentificationNumber());
         return getCustomerDTO;
     }
 

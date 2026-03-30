@@ -1,6 +1,7 @@
 package com.rh.customers.exception;
 import com.rh.customers.core.GenericResponse;
 
+import com.rh.customers.exception.database.DuplicateResourceException;
 import com.rh.customers.exception.domain.NotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
@@ -21,11 +22,18 @@ public class GlobalExceptionHandler {
     }
 
 
-    @ExceptionHandler(DataAccessException.class)
-    public Mono<ResponseEntity<GenericResponse<String>>> handleDataAccessException(
-            DataAccessException ex, ServerHttpRequest request) {
-        return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR,ex, request);
+    @ExceptionHandler(DuplicateResourceException.class)
+    public Mono<ResponseEntity<GenericResponse<String>>> handleDuplicateResourceException(
+            DuplicateResourceException ex, ServerHttpRequest request) {
+        return buildErrorResponse(HttpStatus.CONFLICT, ex, request);
     }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public Mono<ResponseEntity<GenericResponse<String>>> handleIllegalArgumentException(
+            IllegalArgumentException ex, ServerHttpRequest request) {
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, ex, request);
+    }
+
 
 
 

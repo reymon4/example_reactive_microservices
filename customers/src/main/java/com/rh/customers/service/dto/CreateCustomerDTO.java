@@ -7,6 +7,6 @@ public class CreateCustomerDTO {
     private Long id;
     private String password;
     private Boolean state;
-    private PersonDTO person;
+    private CreatePersonDTO person;
 
 }

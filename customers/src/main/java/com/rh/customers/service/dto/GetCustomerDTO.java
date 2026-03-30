@@ -4,7 +4,10 @@ import lombok.Data;
 
 @Data
 public class GetCustomerDTO {
-
     private Long id;
-    private PersonDTO person;
+    private Boolean state;
+    private String customerName;
+    private String phone;
+    private String address;
+    private String identificationNumber;
 }
