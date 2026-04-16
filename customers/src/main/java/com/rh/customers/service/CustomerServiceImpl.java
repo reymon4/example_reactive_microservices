@@ -44,10 +44,13 @@ public class CustomerServiceImpl implements ICustomerService {
         return Mono.fromCallable(() -> customerRepository.save(convertToEntity(createCustomerDTO))).subscribeOn(Schedulers.boundedElastic())
                 .map(this::convertToDTO)
                 .flatMap(customer -> customerCacheService.save(customer)
+                        .doOnSuccess(c -> log.debug("Customer cached with identificationNumber={}", identificationNumber))
                         .onErrorResume(ex -> {
             log.warn("Cache failed creating customer with identificationNumber={}", identificationNumber, ex);
             return Mono.empty();
-        }).then(customerEventProducer.sendCustomerEvent("customer-created", new CustomerEvent(customer.getIdentificationNumber(), customer.getCustomerName(), customer.getState()), customer.getIdentificationNumber())).onErrorResume(ex -> {
+        }).then(customerEventProducer.sendCustomerEvent("customer-created", new CustomerEvent(customer.getIdentificationNumber(), customer.getCustomerName(), customer.getState()), customer.getIdentificationNumber()))
+                        .doOnSuccess(c -> log.debug("Customer event published for identificationNumber={}", identificationNumber))
+                        .onErrorResume(ex -> {
             log.warn("Event publish failed for customer with identificationNumber={}", identificationNumber, ex);
             return Mono.empty();
         }).thenReturn(customer)).onErrorMap(DataIntegrityViolationException.class, ex -> {
@@ -83,6 +86,7 @@ public class CustomerServiceImpl implements ICustomerService {
                                 .map(this::convertToDTO)
                                 .flatMap(customer ->
                                         customerCacheService.save(customer)
+                                                .doOnSuccess(c -> log.debug("Customer cached with identificationNumber={}", customerIdentificationNumber))
                                                 .onErrorResume(ex -> {
                                                     log.warn("Cache failed for customer with identificationNumber={}", customerIdentificationNumber, ex);
                                                     return Mono.empty();
@@ -119,7 +123,7 @@ public class CustomerServiceImpl implements ICustomerService {
                 .map(this::convertToDTO)
                 .flatMap(updatedCustomer
                         -> customerCacheService.delete(identificationNumber)
-                        //.doOnSuccess(d -> log.debug("Cache invalidated id={}", identificationNumber))
+                        .doOnSuccess(d -> log.debug("Cache invalidated id={}", identificationNumber))
                         .onErrorResume(ex -> {
                             log.warn("Cache delete failed id={}", identificationNumber, ex);
                             return Mono.empty();
@@ -154,12 +158,13 @@ public class CustomerServiceImpl implements ICustomerService {
                         Mono.fromRunnable(() -> this.customerRepository.delete(customer))
                                 .subscribeOn(Schedulers.boundedElastic()))
                 .then(customerCacheService.delete(identificationNumber)
-                        //.doOnSuccess(d -> log.debug("Cache deleted id={}", identificationNumber))
+                        .doOnSuccess(d -> log.debug("Cache deleted id={}", identificationNumber))
                         .onErrorResume(ex -> {
                             log.warn("Cache failed id={}", identificationNumber, ex);
                             return Mono.empty();
 
                         }).then(customerEventProducer.sendCustomerEvent("customer-deleted", new CustomerEvent(null, null, null), identificationNumber)
+                                .doOnSuccess(c -> log.info("Customer delete event published for identificationNumber={}", identificationNumber))
                                 .onErrorResume(ex -> {
                             log.warn("Event publish failed for deleted customer with identificationNumber={}", identificationNumber, ex);
                             return Mono.empty();

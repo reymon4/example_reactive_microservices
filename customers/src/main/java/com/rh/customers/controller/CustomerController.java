@@ -47,9 +47,9 @@ public class CustomerController {
 
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public Mono<ResponseEntity<GenericResponse<Page<GetCustomerDTO>>>> getAllCustomers(@RequestParam Boolean state,
-                                                                      @RequestParam Integer page, @RequestParam Integer Size, @RequestParam (required = false) String sorting, ServerHttpRequest request) {
-        log.debug("Received request to get all customers with state: {}, page: {}, size: {}, sorting: {}", state, page, Size, sorting);
-        return customerService.getAllCustomers(state, page, Size, sorting)
+                                                                      @RequestParam Integer page, @RequestParam Integer size, @RequestParam (required = false) String sorting, ServerHttpRequest request) {
+        log.debug("Received request to get all customers with state: {}, page: {}, size: {}, sorting: {}", state, page, size, sorting);
+        return customerService.getAllCustomers(state, page, size, sorting)
                 .map(customers -> new GenericResponse<>
                         (true, 200, "Customers retrieved successfully!", request.getPath().value(), customers))
                 .map(ResponseEntity::ok);

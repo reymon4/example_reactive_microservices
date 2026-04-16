@@ -11,25 +11,25 @@ services:
       SPRING_CLOUD_GATEWAY_SERVER_WEBFLUX_ROUTES_0_ID: customers-service
       SPRING_CLOUD_GATEWAY_SERVER_WEBFLUX_ROUTES_0_URI: http://customers-api:${HOST_PORT_CUSTOMERS_API}
       SPRING_CLOUD_GATEWAY_SERVER_WEBFLUX_ROUTES_0_PREDICATES_0: Path=/api/v1.0/customers/**
+      #SPRING_CLOUD_GATEWAY_SERVER_WEBFLUX_ROUTES_0_FILTERS_0: StripPrefix=2
       SPRING_CLOUD_GATEWAY_SERVER_WEBFLUX_ROUTES_1_ID: bank-service
       SPRING_CLOUD_GATEWAY_SERVER_WEBFLUX_ROUTES_1_URI: http://bank-api:${HOST_PORT_BANK_API}
-      SPRING_CLOUD_GATEWAY_SERVER_WEBFLUX_ROUTES_1_PREDICATES_0: Path=/api/v1.0/accounts/**
-      SPRING_CLOUD_GATEWAY_SERVER_WEBFLUX_ROUTES_1_PREDICATES_1: Path=/api/v1.0/movements/**
+      SPRING_CLOUD_GATEWAY_SERVER_WEBFLUX_ROUTES_1_PREDICATES_0: Path=/api/v1.0/accounts/**, /api/v1.0/movements/**
 
     deploy:
       replicas: 1
     ports:
       - "${HOST_PORT_API_GATEWAY}:${HOST_PORT_API_GATEWAY}"
+    depends_on:
+      - customers-api
 
   customers-api:
-    build:
-      context: ./customers
-      dockerfile: Dockerfile
+    image: customers-service
     restart: always
     environment:
       TZ: America/Lima
       SERVER_PORT: ${HOST_PORT_CUSTOMERS_API}
-      #SERVER_SERVLET_CONTEXT_PATH: /api/v1.0/
+      SPRING_WEBFLUX_BASE-PATH: /api/v1.0/
       SPRING_DATASOURCE_URL: jdbc:postgresql://db-customers:${DB_PORT}/${DB_NAME_CUSTOMERS}
       SPRING_DATASOURCE_USERNAME: ${DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
@@ -44,7 +44,7 @@ services:
     expose:
       - "${HOST_PORT_CUSTOMERS_API}"
     depends_on:
-      - api-gateway
+      - db-customers
 #  bank-api:
 #    build:
 #      context: ./bank
