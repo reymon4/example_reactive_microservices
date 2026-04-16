@@ -14,18 +14,24 @@ public class CustomerCacheService {
 
     private final ReactiveRedisTemplate<String, GetCustomerDTO> redisTemplate;
 
-    private static final String PREFIX = "customer:by-id:";
+    private static final String PREFIX = "customer:by-identification-number:";
 
     public CustomerCacheService(ReactiveRedisTemplate<String, GetCustomerDTO> redisTemplate) {
         this.redisTemplate = redisTemplate;
     }
 
+    public Mono<GetCustomerDTO> get(String identificationNumber) {
+        return redisTemplate.opsForValue()
+                .get(PREFIX + identificationNumber);
+    }
+
+    //TTL
     public Mono<Boolean> save(GetCustomerDTO customer) {
         return redisTemplate.opsForValue()
                 .set(PREFIX + customer.getIdentificationNumber(), customer, Duration.ofMinutes(10));
     }
 
-    public Mono<Boolean> delete(String id) {
-        return redisTemplate.delete(PREFIX + id).map(count -> count > 0);
+    public Mono<Boolean> delete(String identificationNumber) {
+        return redisTemplate.delete(PREFIX + identificationNumber).map(count -> count > 0);
     }
 }

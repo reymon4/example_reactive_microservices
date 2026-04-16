@@ -1,4 +1,4 @@
-package com.rh.customers.exception.database;
+package com.rh.customers.exception.db;
 
 public class IllegalArgumentsException extends DatabaseException{
     public IllegalArgumentsException(String id, String ex) {

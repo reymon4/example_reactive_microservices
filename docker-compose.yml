@@ -1,5 +1,26 @@
 # docker compose -f docker-compose.yml up -d
 services:
+  api-gateway:
+    build:
+      context: ./api_gateway
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      TZ: America/Lima
+      SERVER_PORT: ${HOST_PORT_API_GATEWAY}
+      SPRING_CLOUD_GATEWAY_SERVER_WEBFLUX_ROUTES_0_ID: customers-service
+      SPRING_CLOUD_GATEWAY_SERVER_WEBFLUX_ROUTES_0_URI: http://customers-api:${HOST_PORT_CUSTOMERS_API}
+      SPRING_CLOUD_GATEWAY_SERVER_WEBFLUX_ROUTES_0_PREDICATES_0: Path=/api/v1.0/customers/**
+      SPRING_CLOUD_GATEWAY_SERVER_WEBFLUX_ROUTES_1_ID: bank-service
+      SPRING_CLOUD_GATEWAY_SERVER_WEBFLUX_ROUTES_1_URI: http://bank-api:${HOST_PORT_BANK_API}
+      SPRING_CLOUD_GATEWAY_SERVER_WEBFLUX_ROUTES_1_PREDICATES_0: Path=/api/v1.0/accounts/**
+      SPRING_CLOUD_GATEWAY_SERVER_WEBFLUX_ROUTES_1_PREDICATES_1: Path=/api/v1.0/movements/**
+
+    deploy:
+      replicas: 1
+    ports:
+      - "${HOST_PORT_API_GATEWAY}:${HOST_PORT_API_GATEWAY}"
+
   customers-api:
     build:
       context: ./customers
@@ -8,34 +29,40 @@ services:
     environment:
       TZ: America/Lima
       SERVER_PORT: ${HOST_PORT_CUSTOMERS_API}
-      SPRING_WEBFLUX_BASE-PATH: /api/v1.0/
+      #SERVER_SERVLET_CONTEXT_PATH: /api/v1.0/
       SPRING_DATASOURCE_URL: jdbc:postgresql://db-customers:${DB_PORT}/${DB_NAME_CUSTOMERS}
       SPRING_DATASOURCE_USERNAME: ${DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       SPRING_SWAGGER-UI_PATH: /swagger-ui.html
       SPRING_FLYWAY_LOCATIONS: classpath:db/migration
+      SPRING_KAFKA_ADMIN_PROPERTIES_BOOTSTRAP_SERVERS: kafka:${KAFKA_PORT}
+      SPRING_KAFKA_PRODUCER_BOOTSTRAP_SERVERS: kafka:${KAFKA_PORT}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
     deploy:
       replicas: 1
-    ports:
-      - "${HOST_PORT_CUSTOMERS_API}:9000"
-  bank-api:
-    build:
-      context: ./bank
-      dockerfile: Dockerfile
-    restart: always
-    environment:
-      TZ: America/Lima
-      SERVER_PORT: ${HOST_PORT_BANK_API}
-      SERVER_SERVLET_CONTEXT_PATH: /api/v1.0/
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db-bank:${DB_PORT}/${DB_NAME_BANK}
-      SPRING_DATASOURCE_USERNAME: ${DB_USER}
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
-      SPRING_SWAGGER-UI_PATH: /swagger-ui.html
-      SPRING_FLYWAY_LOCATIONS: classpath:db/migration
-    deploy:
-      replicas: 1
-    ports:
-      - "${HOST_PORT_BANK_API}:9001"
+    expose:
+      - "${HOST_PORT_CUSTOMERS_API}"
+    depends_on:
+      - api-gateway
+#  bank-api:
+#    build:
+#      context: ./bank
+#      dockerfile: Dockerfile
+#    restart: always
+#    environment:
+#      TZ: America/Lima
+#      SERVER_PORT: ${HOST_PORT_BANK_API}
+#      SERVER_SERVLET_CONTEXT_PATH: /api/v1.0/
+#      SPRING_DATASOURCE_URL: jdbc:postgresql://db-bank:${DB_PORT}/${DB_NAME_BANK}
+#      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+#      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+#      SPRING_SWAGGER-UI_PATH: /swagger-ui.html
+#      SPRING_FLYWAY_LOCATIONS: classpath:db/migration
+#    deploy:
+#      replicas: 1
+#    ports:
+#      - "${HOST_PORT_BANK_API}:9001"
 
   db-customers:
     image: postgres:17.2-alpine3.21
@@ -48,17 +75,17 @@ services:
       - "postgres_data_customers:/var/lib/postgresql/data"
     expose:
       - ${DB_PORT}
-  db-bank:
-    image: postgres:17.2-alpine3.21
-    environment:
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_DB: ${DB_NAME_BANK}
-      PG_DATA: /var/lib/postgresql/data/pgdata
-    volumes:
-      - "postgres_data_bank:/var/lib/postgresql/data"
-    expose:
-      - ${DB_PORT}
+#  db-bank:
+#    image: postgres:17.2-alpine3.21
+#    environment:
+#      POSTGRES_PASSWORD: ${DB_PASSWORD}
+#      POSTGRES_USER: ${DB_USER}
+#      POSTGRES_DB: ${DB_NAME_BANK}
+#      PG_DATA: /var/lib/postgresql/data/pgdata
+#    volumes:
+#      - "postgres_data_bank:/var/lib/postgresql/data"
+#    expose:
+#      - ${DB_PORT}
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
@@ -71,7 +98,7 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:{KAFKA_PORT}
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:${KAFKA_PORT}
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:${KAFKA_PORT}
     expose:

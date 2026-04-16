@@ -1,4 +1,4 @@
-package com.rh.customers.exception.database;
+package com.rh.customers.exception.db;
 
 import org.springframework.dao.DataIntegrityViolationException;
 

@@ -18,4 +18,5 @@ public class SwaggerConfig {
                         .description("API documentation for the Customer Service").contact(new Contact()
                                 .name("Reymon Hidalgo")));
     }
+
 }

@@ -4,6 +4,8 @@ package com.rh.customers.event.producer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import reactor.core.scheduler.Schedulers;
+import reactor.core.publisher.Mono;
 
 @Service
 @Slf4j
@@ -16,9 +18,10 @@ public class CustomerEventProducer {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    public void sendCustomerCreatedEvent(String topic, CustomerEvent event) {
-
-        kafkaTemplate.send(topic, event.getIdentificationNumber(), event);
-        log.info("Event sent to Kafka topic={} id={}", topic, event.getIdentificationNumber());
+    public Mono<Void> sendCustomerEvent(String topic, CustomerEvent event, String identificationNumber) {
+        return Mono.fromRunnable(() -> {
+            kafkaTemplate.send(topic, identificationNumber, event);
+        }).subscribeOn(Schedulers.boundedElastic())
+          .then();
     }
 }

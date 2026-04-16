@@ -8,8 +8,17 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/api_gateway" />
             <option value="$PROJECT_DIR$/bank" />
             <option value="$PROJECT_DIR$/customers" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/api_gateway" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/api_gateway" />
           </set>
         </option>
       </GradleProjectSettings>

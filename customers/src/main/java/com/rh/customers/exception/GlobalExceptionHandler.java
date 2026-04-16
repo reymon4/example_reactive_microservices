@@ -1,10 +1,9 @@
 package com.rh.customers.exception;
 import com.rh.customers.core.GenericResponse;
 
-import com.rh.customers.exception.database.DuplicateResourceException;
+import com.rh.customers.exception.db.DuplicateResourceException;
 import com.rh.customers.exception.domain.NotFoundException;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.server.reactive.ServerHttpRequest;
